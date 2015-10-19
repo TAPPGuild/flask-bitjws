@@ -17,7 +17,7 @@ from flask_bitjws import Application
 app = Application()
 ```
 
-To provide a private key for your server to use in signing, set 'BITJWS_PRIV_KEY' in the configuration passed in to Application.__init__().
+To provide a private key for your server to use in signing, include a privkey argument to Application.__init__().
 
 ``` Python
 from flask_bitjws import Application
@@ -25,7 +25,7 @@ from flask_bitjws import Application
 # Your bitjws private key in WIF
 privkey = "KweY4PozGhtkGPMvvD7vk7nLiN6211XZ2QGxLBMginAQW7MBbgp8"
 
-app = Application(cfg)
+app = Application(__name__, privkey=privkey)
 ```
 
 To get the JWS header and payload from the raw request, use flask_bitjws.get_bitjws_header_payload. If the header returned is None, then the request failed signature validation.  
