@@ -41,17 +41,19 @@ USERS = []
 
 @app.route('/user', methods=['POST'])
 def post_user():
+    # extract the jws header and payload. Also validates the signature.
     g.jws_header, g.payload = get_bitjws_header_payload(request)
     if g.jws_header is None:
         return "Invalid Payload", 401
 
     username = g.payload.get('username')
     address = g.jws_header['kid']
-    user = User(address, username)
+    user = {'address': address, 'username': username}
     USERS.append(user)
-    response = current_app.create_bitjws_response(username=username,
+    
+    # return a bitjws signed and formatted response
+    return current_app.create_bitjws_response(username=username,
             address=address, id=len(USERS))
-    return response
 
 app.run(host='0.0.0.0', port=8002)
 ```
