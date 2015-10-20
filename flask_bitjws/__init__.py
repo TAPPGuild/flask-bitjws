@@ -51,7 +51,7 @@ class Application(Flask):
 
     def create_bitjws_response(self, payload):
         """
-        Create a signed bitjws response using the supplied keyword arguments.
+        Create a signed bitjws response using the supplied payload.
         The response content-type will be 'application/jose'.
 
         :param payload: The response content. Must be json-serializable.
