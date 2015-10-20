@@ -40,16 +40,24 @@ class Application(Flask):
 
 
     def __augment_request(self):
+        """
+        If the request content-type is 'application/jose',
+        extract the jws payload and header from the request body.
+        """
         if "application/jose" in request.headers['content-type']:
             request.jws_header, request.jws_payload = \
                     get_bitjws_header_payload(request)
 
 
-    def create_bitjws_response(self, **kwargs):
+    def create_bitjws_response(self, payload):
         """
         Create a signed bitjws response using the supplied keyword arguments.
         The response content-type will be 'application/jose'.
+
+        :param payload: The response content. Must be json-serializable.
+        :return: The signed Response with headers.
+        :rtype: flask.Response
         """
-        signedmess = bitjws.sign_serialize(self._privkey, **kwargs)
+        signedmess = bitjws.sign_serialize(self._privkey, data=payload)
         return Response(signedmess, mimetype='application/jose')
 
