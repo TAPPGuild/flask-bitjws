@@ -40,7 +40,7 @@ class Application(Flask):
 
 
     def __augment_request(self):
-        if "application/jws" in request.headers['content-type']:
+        if "application/jose" in request.headers['content-type']:
             request.jws_header, request.jws_payload = \
                     get_bitjws_header_payload(request)
 
@@ -48,8 +48,8 @@ class Application(Flask):
     def create_bitjws_response(self, **kwargs):
         """
         Create a signed bitjws response using the supplied keyword arguments.
-        The response content-type will be 'application/jws'.
+        The response content-type will be 'application/jose'.
         """
         signedmess = bitjws.sign_serialize(self._privkey, **kwargs)
-        return Response(signedmess, mimetype='application/jws')
+        return Response(signedmess, mimetype='application/jose')
 

@@ -35,7 +35,7 @@ app = Application(__name__, privkey=privkey)
 
 To get the JWS header and payload from the raw request, use get_bitjws_header_payload. If the header returned is None, then the request failed signature validation.
 
-This get_bitjws_header_payload call is automatically done for incoming requests with content-type "application/jws", and the results are stored in the request.
+This get_bitjws_header_payload call is automatically done for incoming requests with content-type "application/jose", and the results are stored in the request.
   
 When you're ready to respond, use the create_bitjws_response method to construct your response in bitjws format.
 
