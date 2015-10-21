@@ -17,7 +17,7 @@ def get_bitjws_header_payload(req):
 
 class Application(Flask):
     """
-    A wrapper for the main Flask application.
+    A wrapper for the main Flask bitjws application.
     """
 
     def __init__(self, name, privkey=None, **kwargs):

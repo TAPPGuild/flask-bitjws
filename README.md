@@ -1,4 +1,5 @@
-# flask-bitjws
+# flask-bitjws [![Build Status](https://travis-ci.org/deginner/flask-bitjws.svg?branch=master)](https://travis-ci.org/deginner/flask-bitjws) [![Coverage](https://coveralls.io/repos/deginner/flask-bitjws/badge.svg?branch=master&service=github)](https://coveralls.io/github/deginner/flask-bitjws?branch=master) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/deginner/bitjws?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
+
 Flask extension for [bitjws](https://github.com/g-p-g/bitjws) authentication.
 
 ## Installation
