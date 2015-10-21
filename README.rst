@@ -1,5 +1,5 @@
-flask-bitjws
-============
+flask-bitjws |Build Status| |Coverage| |Gitter|
+===============================================
 
 Flask extension for `bitjws <https://github.com/g-p-g/bitjws>`__
 authentication.
@@ -80,3 +80,9 @@ construct your response in bitjws format.
 
     app.run(host='0.0.0.0', port=8002)
 
+.. |Build Status| image:: https://travis-ci.org/deginner/flask-bitjws.svg?branch=master
+   :target: https://travis-ci.org/deginner/flask-bitjws
+.. |Coverage| image:: https://coveralls.io/repos/deginner/flask-bitjws/badge.svg?branch=master&service=github
+   :target: https://coveralls.io/github/deginner/flask-bitjws?branch=master
+.. |Gitter| image:: https://badges.gitter.im/Join%20Chat.svg
+   :target: https://gitter.im/deginner/bitjws?utm_source=share-link&utm_medium=link&utm_campaign=share-link
