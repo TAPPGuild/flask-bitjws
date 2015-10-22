@@ -11,7 +11,7 @@ def get_bitjws_header_payload(req):
          req.get_data().decode('utf8'))
     if header is None:
         # Validation failed.
-        return None
+        return None, None
     return header, payload
 
 
