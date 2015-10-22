@@ -7,8 +7,8 @@ classifiers = [
 ]
 
 setup(
-    name='Flask bitjws',
-    version='0.0.3',
+    name='Flask-bitjws',
+    version='0.1.0',
     packages=['flask_bitjws'],
     include_package_data=True,
     url='https://github.com/deginner/flask-bitjws',

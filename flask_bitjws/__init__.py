@@ -7,12 +7,11 @@ def get_bitjws_header_payload(req):
     :param flask.Request request: The raw request with bitjws message body
     :return: the JWS header and payload, in that order
     """
-    header, payload = bitjws.validate_deserialize(
-         req.get_data().decode('utf8'))
-    if header is None:
+    h, p = bitjws.validate_deserialize(req.get_data().decode('utf8'))
+    if h is None:
         # Validation failed.
         return None, None
-    return header, payload
+    return h, p
 
 
 class Application(Flask):
@@ -23,7 +22,7 @@ class Application(Flask):
     def __init__(self, name, privkey=None, **kwargs):
         """
         Initialize a Flask-bitjws Application.
-        
+
         :param str name: the application's name
         :param str privkey: the bitjws private key to use for signing responses
         """
@@ -36,7 +35,7 @@ class Application(Flask):
         else:
             self._privkey = bitjws.PrivateKey()
         self.pubkey = bitjws.pubkey_to_addr(self._privkey.pubkey.serialize())
-        print("Initializing server with address: {}".format(self.pubkey))
+        print "Initializing server with address: {}".format(self.pubkey)
 
 
     def __augment_request(self):
