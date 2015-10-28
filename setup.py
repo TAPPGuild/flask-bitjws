@@ -8,7 +8,7 @@ classifiers = [
 
 setup(
     name='Flask-bitjws',
-    version='0.1.0',
+    version='0.1.0.1',
     packages=['flask_bitjws'],
     include_package_data=True,
     url='https://github.com/deginner/flask-bitjws',
@@ -20,7 +20,8 @@ setup(
     setup_requires=['pytest-runner'],
     install_requires=[
         "Flask",
-        "bitjws",
+        'secp256k1==0.11',
+        "bitjws==0.6.3.1",
     ],
     tests_require=['pytest', 'pytest-cov']
 )
