@@ -39,18 +39,15 @@ def load_user_from_request(req):
                     bitjws.validate_deserialize(dedata, requrl=rule.rule)
                 break
     if not hasattr(req, 'jws_header') or req.jws_header is None:
-        # Validation failed.
         return None
-    lastnonce = current_app.bitjws.get_last_nonce(req.jws_header['kid'],
-                                                  req.jws_payload['iat'])
-    print lastnonce
+
     if (not 'iat' in req.jws_payload or
-            req.jws_payload['iat'] <= lastnonce):
+            req.jws_payload['iat'] <= 
+            current_app.bitjws.get_last_nonce(req.jws_header['kid'],
+                                              req.jws_payload['iat'])):
         return None
     rawu = current_app.bitjws.get_user_by_key(req.jws_header['kid'])
-    print rawu
     user = FlaskUser(**rawu)
-    print user
     return user
 
 

@@ -41,16 +41,36 @@ def test_echo_request():
     assert p['data'] == echo_msg
 
 
+def test_bad_nonce():
+    app = server.app.test_client()
+    privkey = bitjws.PrivateKey()
+    echo_msg = {'hello': 'server'}
+    data = bitjws.sign_serialize(privkey, echo=echo_msg, iat=time.time(), requrl="/echo")
+    data2 = bitjws.sign_serialize(privkey, echo=echo_msg, iat=time.time()-2, requrl="/echo")
+    echo = app.post('/echo', data=data, headers={'Content-Type': 'application/jose'})
+    echo2 = app.post('/echo', data=data2, headers={'Content-Type': 'application/jose'})
+    assert echo2.status_code == 401
+
+
+def test_no_nonce():
+    app = server.app.test_client()
+    privkey = bitjws.PrivateKey()
+    echo_msg = {'hello': 'server'}
+    data = bitjws.sign_serialize(privkey, echo=echo_msg, requrl="/echo")
+    echo = app.post('/echo', data=data, headers={'Content-Type': 'application/jose'})
+    assert echo.status_code == 401
+
+
 def test_bad_request():
     app = server.app.test_client()
     privkey = bitjws.PrivateKey()
-    echo_msg = 'hello'
+    echo_msg = {'hello': 'server'}
     data = bitjws.sign_serialize(privkey, echo=echo_msg, iat=time.time(), requrl="/echo")
     data2 = bitjws.sign_serialize(privkey, echo='not%s' % echo_msg)
     da = data.split('.')
     da2 = data2.split('.')
     baddata = "%s.%s.%s" % (da[0], da2[1], da[2])
-    echo = app.post('/echo', data=data)
+    echo = app.post('/echo', data=data, headers={'Content-Type': 'application/jose'})
     echo.data = baddata
     h, p = bitjws.validate_deserialize(echo.get_data().decode('utf8'), requrl='/response')
     assert h is None
