@@ -1,3 +1,4 @@
-Flask
+flask
+flask-login
 bitjws==0.6.3.1
 

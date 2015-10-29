@@ -7,10 +7,9 @@ classifiers = [
 ]
 
 setup(
-    name='Flask-bitjws',
-    version='0.1.0.1',
-    packages=['flask_bitjws'],
-    include_package_data=True,
+    name='flask-bitjws',
+    version='0.1.1',
+    py_modules=['flask_bitjws'],
     url='https://github.com/deginner/flask-bitjws',
     license='MIT',
     classifiers=classifiers,
@@ -19,7 +18,8 @@ setup(
     description='A Flask extension for bitjws authentication.',
     setup_requires=['pytest-runner'],
     install_requires=[
-        "Flask",
+        "flask>=0.10.0",
+        "flask-login",
         'secp256k1==0.11',
         "bitjws==0.6.3.1",
     ],

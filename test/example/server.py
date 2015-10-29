@@ -1,43 +1,60 @@
 import os
 import bitjws
-from flask import request, current_app
-
-from flask_bitjws import Application, get_bitjws_header_payload
+import json
+from flask import Flask, request, current_app
+from flask.ext.login import login_required
 
 import cfg
 
 COINS = [{'metal': 'AU', 'mint': 'perth'}, {'metal': 'AG', 'mint': 'perth'}]
-
-app = Application(__name__)
+app = Flask(__name__)
 
 
 @app.route('/coin', methods=['GET'])
 def get_coins():
-    return current_app.create_bitjws_response(COINS)
+    return current_app.bitjws.create_response(COINS)
 
 
 @app.route('/coin', methods=['POST'])
+@login_required
 def create_coin():
-    if not hasattr(request, 'jws_header') or request.jws_header is None:
-        return "Invalid Payload", 401
     coin = {}
     coin['metal'] = request.jws_payload.get('metal')
     coin['mint'] = request.jws_payload.get('mint')
     COINS.append(coin)
-    return current_app.create_bitjws_response(coin)
+    return current_app.bitjws.create_response(coin)
 
 
 @app.route('/echo', methods=['POST'])
+@login_required
 def echo():
-    h, p = get_bitjws_header_payload(request)
-    return current_app.create_bitjws_response(p['echo'])
+    dd = request.jws_payload['data']
+    return current_app.bitjws.create_response(dd)
 
 
 @app.route('/echodetails', methods=['POST'])
+@login_required
 def echodetails():
     p = request.jws_payload
     h = request.jws_header
     response = {'headers': dict(request.headers), 'jws': 
                 {'header': h, 'payload': p}}
-    return current_app.create_bitjws_response(response)
+    return current_app.bitjws.create_response(response)
+
+@app.route('/user', methods=['POST'])
+def prot():
+    user = json.loads(request.get_data())
+    oldu = current_app.bitjws.get_user_by_key(user['kid'])
+    if oldu is not None:
+        user = oldu
+    else:
+        user['salt'] = user['kid']  # just reusing this salt name... not a salt
+        del user['kid']
+        current_app.bitjws._example_user_db[user['salt']] = user
+    return json.dumps(user)
+
+if __name__ == "__main__":
+    from flask_bitjws import FlaskBitjws
+    fbj = FlaskBitjws(app)
+    app.run(host='0.0.0.0', port=8002, debug=True)
 

@@ -5,8 +5,8 @@ install:
 	python setup.py install
 
 clean:
-	rm -rf build dist bravado_bitjws.egg-info test/__pycache__ bravado_bitjws/__pycache__
-	rm -rf test/*.pyc bravado_bitjws/*.pyc *.egg *~ bravado_bitjws/*~ test/*~
+	rm -rf build dist flask_bitjws.egg-info test/__pycache__
+	rm -rf test/*.pyc *.egg *~ *pyc test/*~
 
 rst:
 	pandoc --from=markdown_github --to=rst --output=README.rst README.md

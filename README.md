@@ -3,12 +3,6 @@
 
 Flask extension for [bitjws](https://github.com/g-p-g/bitjws) authentication.
 
-## Installation
-
-Flask-bitjws can be installed by running:
-
-`pip install flask-bitjws`
-
 ## Install
 
 By default it's expected that [secp256k1](https://github.com/bitcoin/secp256k1) is available, so install it before proceeding; make sure to run `./configure --enable-module-recovery`. If you're using some other library that provides the functionality necessary for this, check the __Using a custom library__ section of the bitjws README.
@@ -31,16 +25,33 @@ make
 sudo make install
 ```
 
-
-## Usage
+## Initialization
 
 ##### Initialize a flask_bitjws Application
-The flask-bitjws package provides a Flask Application wrapper. To enable bitjws authentication, use the flask_bitjws.Application instead of flask.Flask to initialize your app.
+The flask-bitjws package provides a Flask Application wrapper. To enable bitjws authentication, initialize FlaskBitjws with your flask app as the first argument.
 
 ``` Python
-from flask_bitjws import Application
+from flask import Flask
+from flask_bitjws import FlaskBitjws
 
-app = Application(__name__)
+app = Flask(__name__)
+FlaskBitjws(app)
+```
+
+##### Customizing LoginManager
+Flask-bitjws uses flask-login to manage user login and authentication. By default,
+the FlaskBitjws initialization will create a new LoginManager for you. If you need to customize, you can alternately provide your own. Just be aware that it's request loader needs to be left as is.
+
+``` Python
+from flask import Flask
+from flask_bitjws import FlaskBitjws
+from flask.ext.login import LoginManager
+
+# Your LoginManager
+lm = LoginManager()
+
+app = Flask(__name__)
+FlaskBitjws(app, loginmanager=lm)
 ```
 
 ##### Initialize with private key
@@ -48,42 +59,96 @@ app = Application(__name__)
 To provide a private key for your server to use in signing, include a privkey argument to Application.__init__().
 
 ``` Python
-from flask_bitjws import Application
+from flask import Flask
+from flask_bitjws import FlaskBitjws
 
 # Your bitjws private key in WIF
 privkey = "KweY4PozGhtkGPMvvD7vk7nLiN6211XZ2QGxLBMginAQW7MBbgp8"
 
-app = Application(__name__, privkey=privkey)
+app = Flask(__name__)
+FlaskBitjws(app, privkey=privkey)
 ```
 
-##### Requests and Responses
+## Usage
 
-To get the JWS header and payload from the raw request, use get_bitjws_header_payload. If the header returned is None, then the request failed signature validation.
+##### Requests
 
-This get_bitjws_header_payload call is automatically done for incoming requests with content-type "application/jose", and the results are stored in the request.
-  
+For all routes that require login (i.e. wrapped in @login_required), the FlaskBitjws login manager will validate the bitjws headers and data, and match it up to a user.
+
+If authentication is successful, the request will have two new attributes "jws_payload", and "jws_header".
+
+If authentication fails, flask-login will return a 401 error.
+
+```
+from flask import Flask
+from flask_bitjws import FlaskBitjws
+
+# Your bitjws private key in WIF
+privkey = "KweY4PozGhtkGPMvvD7vk7nLiN6211XZ2QGxLBMginAQW7MBbgp8"
+
+app = Flask(__name__)
+FlaskBitjws(app, privkey=privkey)
+
+@app.route('/user', methods=['POST'])
+@login_required
+def post_user():
+    # request.jws_payload should exist and have the deserialized JWT claimset
+    username = request.jws_payload.get('username')
+    # request.jws_header should exist and have the sender's public key
+    address = request.jws_header['kid']
+    user = {'username': username, 'address': address}
+    # return a bitjws signed and formatted response
+    return current_app.create_bitjws_response(user)
+```
+
+##### Responses
+
 When you're ready to respond, use the create_bitjws_response method to construct your response in bitjws format.
 
 ```
-from flask_bitjws import Application, get_bitjws_header_payload
-app = Application(__name__)
+response_object = {'can be': 'a dict', 'or any': 'valid json'}
+return current_app.create_bitjws_response(response_object)
+```
 
-# in memory users "database" for example
-USERS = []
+## Your Database
 
-@app.route('/user', methods=['POST'])
-def post_user():
-    if not hasattr(request, 'jws_header') or request.jws_header is None:
-        return "Invalid Payload", 401
+Flask-bitjws comes with an example, in-memory data store for users and nonces. Using this example "database" is extremely insecure and unstable. It is recommended to providing bindings to your own persistent database for production use. This can be done by overwriting two FlaskBitjws methods: get_last_nonce, and get_user_by_key. Here are the defaults, for reference:
 
-    username = request.jws_payload.get('username')
-    address = request.jws_header['kid']
-    user = {'address': address, 'username': username}
-    USERS.append(user)
-    
-    # return a bitjws signed and formatted response
-    return current_app.create_bitjws_response(username=username,
-            address=address, id=len(USERS))
 
-app.run(host='0.0.0.0', port=8002)
+```
+    """
+    DB STUBS
+
+    Overwrite the remaining methods in this class for your own.
+    """
+    def get_last_nonce(self, key, nonce):
+        """
+        This method is only an example! Replace it with a real nonce database.
+
+        :param str key: the public key the nonce belongs to
+        :param int nonce: the latest nonce
+        """
+        if not hasattr(self, '_example_nonce_db'):
+            # store nonces as a pair {key: lastnonce}
+            self._example_nonce_db = {}
+        if not key in self._example_nonce_db:
+            self._example_nonce_db[key] = nonce
+            return 0
+        else:
+            oldnonce = copy.copy(self._example_nonce_db[key])
+            self._example_nonce_db[key] = nonce
+            return oldnonce
+
+    def get_user_by_key(self, key):
+        """
+        This method is only an example! Replace it with a real user database.
+
+        :param str key: the public key the user belongs to
+        """
+        if not hasattr(self, '_example_user_db'):
+            self._example_user_db = {}
+
+        if key in self._example_user_db:
+            return self._example_user_db[key]
+        return None
 ```
