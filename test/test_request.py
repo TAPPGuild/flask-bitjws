@@ -61,7 +61,7 @@ def test_no_nonce():
     assert echo.status_code == 401
 
 
-def test_bad_request():
+def test_bad_response():
     app = server.app.test_client()
     privkey = bitjws.PrivateKey()
     echo_msg = {'hello': 'server'}
@@ -74,4 +74,17 @@ def test_bad_request():
     echo.data = baddata
     h, p = bitjws.validate_deserialize(echo.get_data().decode('utf8'), requrl='/response')
     assert h is None
+
+
+def test_bad_request():
+    app = server.app.test_client()
+    privkey = bitjws.PrivateKey()
+    echo_msg = {'hello': 'server'}
+    data = bitjws.sign_serialize(privkey, echo=echo_msg, iat=time.time(), requrl="/echo")
+    data2 = bitjws.sign_serialize(privkey, echo='not%s' % echo_msg)
+    da = data.split('.')
+    da2 = data2.split('.')
+    baddata = "%s.%s.%s" % (da[0], da2[1], da[2])
+    echo = app.post('/echo', data=baddata, headers={'Content-Type': 'application/jose'})
+    assert echo.status_code == 401
 

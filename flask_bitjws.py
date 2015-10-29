@@ -42,7 +42,7 @@ def load_user_from_request(req):
         return None
 
     if (not 'iat' in req.jws_payload or
-            req.jws_payload['iat'] <= 
+            req.jws_payload['iat'] <=
             current_app.bitjws.get_last_nonce(req.jws_header['kid'],
                                               req.jws_payload['iat'])):
         return None
@@ -103,11 +103,10 @@ class FlaskBitjws(object):
                                            iat=time.time(), data=payload)
         return Response(signedmess, mimetype='application/jose')
 
-    """
-    DB STUBS
-
-    Overwrite the remaining methods in this class for your own.
-    """
+    ##############################################################
+    # DB STUBS Section
+    # Overwrite the remaining methods in this class for your own.
+    ##############################################################
     def get_last_nonce(self, key, nonce):
         """
         This method is only an example! Replace it with a real nonce database.

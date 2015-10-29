@@ -1,31 +1,79 @@
-flask-bitjws |Build Status| |Coverage| |Gitter|
-===============================================
+flask-bitjws |PyPi version| |Build Status| |Coverage| |Gitter|
+==============================================================
 
 Flask extension for `bitjws <https://github.com/g-p-g/bitjws>`__
 authentication.
 
-Installation
-------------
+Install
+-------
 
-At the moment, installing from source is the only supported method.
+By default it's expected that
+`secp256k1 <https://github.com/bitcoin/secp256k1>`__ is available, so
+install it before proceeding; make sure to run
+``./configure --enable-module-recovery``. If you're using some other
+library that provides the functionality necessary for this, check the
+**Using a custom library** section of the bitjws README.
 
-``python setup.py install``
+Flask-bitjws can be installed by running:
 
-Usage
------
+``pip install flask-bitjws``
+
+Building secp256k1
+''''''''''''''''''
+
+In case you need to install the ``secp256k1`` C library, the following
+sequence of commands is recommended. If you already have ``secp256k1``,
+make sure it was compiled from the expected git commit or it might fail
+to work due to API incompatibilities.
+
+::
+
+    git clone git://github.com/bitcoin/secp256k1.git libsecp256k1
+    cd libsecp256k1
+    git checkout d7eb1ae96dfe9d497a26b3e7ff8b6f58e61e400a
+    ./autogen.sh
+    ./configure --enable-module-recovery
+    make
+    sudo make install
+
+Initialization
+--------------
 
 Initialize a flask\_bitjws Application
 ''''''''''''''''''''''''''''''''''''''
 
 The flask-bitjws package provides a Flask Application wrapper. To enable
-bitjws authentication, use the flask\_bitjws.Application instead of
-flask.Flask to initialize your app.
+bitjws authentication, initialize FlaskBitjws with your flask app as the
+first argument.
 
 .. code:: Python
 
-    from flask_bitjws import Application
+    from flask import Flask
+    from flask_bitjws import FlaskBitjws
 
-    app = Application(__name__)
+    app = Flask(__name__)
+    FlaskBitjws(app)
+
+Customizing LoginManager
+''''''''''''''''''''''''
+
+| Flask-bitjws uses flask-login to manage user login and authentication.
+By default,
+| the FlaskBitjws initialization will create a new LoginManager for you.
+If you need to customize, you can alternately provide your own. Just be
+aware that it's request loader needs to be left as is.
+
+.. code:: Python
+
+    from flask import Flask
+    from flask_bitjws import FlaskBitjws
+    from flask.ext.login import LoginManager
+
+    # Your LoginManager
+    lm = LoginManager()
+
+    app = Flask(__name__)
+    FlaskBitjws(app, loginmanager=lm)
 
 Initialize with private key
 '''''''''''''''''''''''''''
@@ -35,51 +83,113 @@ privkey argument to Application.\ **init**\ ().
 
 .. code:: Python
 
-    from flask_bitjws import Application
+    from flask import Flask
+    from flask_bitjws import FlaskBitjws
 
     # Your bitjws private key in WIF
     privkey = "KweY4PozGhtkGPMvvD7vk7nLiN6211XZ2QGxLBMginAQW7MBbgp8"
 
-    app = Application(__name__, privkey=privkey)
+    app = Flask(__name__)
+    FlaskBitjws(app, privkey=privkey)
 
-Requests and Responses
-''''''''''''''''''''''
+Usage
+-----
 
-To get the JWS header and payload from the raw request, use
-get\_bitjws\_header\_payload. If the header returned is None, then the
-request failed signature validation.
+Requests
+''''''''
 
-This get\_bitjws\_header\_payload call is automatically done for
-incoming requests with content-type "application/jose", and the results
-are stored in the request.
+For all routes that require login (i.e. wrapped in @login\_required),
+the FlaskBitjws login manager will validate the bitjws headers and data,
+and match it up to a user.
+
+If authentication is successful, the request will have two new
+attributes "jws\_payload", and "jws\_header".
+
+If authentication fails, flask-login will return a 401 error.
+
+::
+
+    from flask import Flask
+    from flask_bitjws import FlaskBitjws
+
+    # Your bitjws private key in WIF
+    privkey = "KweY4PozGhtkGPMvvD7vk7nLiN6211XZ2QGxLBMginAQW7MBbgp8"
+
+    app = Flask(__name__)
+    FlaskBitjws(app, privkey=privkey)
+
+    @app.route('/user', methods=['POST'])
+    @login_required
+    def post_user():
+        # request.jws_payload should exist and have the deserialized JWT claimset
+        username = request.jws_payload.get('username')
+        # request.jws_header should exist and have the sender's public key
+        address = request.jws_header['kid']
+        user = {'username': username, 'address': address}
+        # return a bitjws signed and formatted response
+        return current_app.create_bitjws_response(user)
+
+Responses
+'''''''''
 
 When you're ready to respond, use the create\_bitjws\_response method to
 construct your response in bitjws format.
 
 ::
 
-    from flask_bitjws import Application, get_bitjws_header_payload
-    app = Application(__name__)
+    response_object = {'can be': 'a dict', 'or any': 'valid json'}
+    return current_app.create_bitjws_response(response_object)
 
-    # in memory users "database" for example
-    USERS = []
+Your Database
+-------------
 
-    @app.route('/user', methods=['POST'])
-    def post_user():
-        if not hasattr(request, 'jws_header') or request.jws_header is None:
-            return "Invalid Payload", 401
+Flask-bitjws comes with an example, in-memory data store for users and
+nonces. Using this example "database" is extremely insecure and
+unstable. It is recommended to providing bindings to your own persistent
+database for production use. This can be done by overwriting two
+FlaskBitjws methods: get\_last\_nonce, and get\_user\_by\_key. Here are
+the defaults, for reference:
 
-        username = request.jws_payload.get('username')
-        address = request.jws_header['kid']
-        user = {'address': address, 'username': username}
-        USERS.append(user)
-        
-        # return a bitjws signed and formatted response
-        return current_app.create_bitjws_response(username=username,
-                address=address, id=len(USERS))
+::
 
-    app.run(host='0.0.0.0', port=8002)
+        """
+        DB STUBS
 
+        Overwrite the remaining methods in this class for your own.
+        """
+        def get_last_nonce(self, key, nonce):
+            """
+            This method is only an example! Replace it with a real nonce database.
+
+            :param str key: the public key the nonce belongs to
+            :param int nonce: the latest nonce
+            """
+            if not hasattr(self, '_example_nonce_db'):
+                # store nonces as a pair {key: lastnonce}
+                self._example_nonce_db = {}
+            if not key in self._example_nonce_db:
+                self._example_nonce_db[key] = nonce
+                return 0
+            else:
+                oldnonce = copy.copy(self._example_nonce_db[key])
+                self._example_nonce_db[key] = nonce
+                return oldnonce
+
+        def get_user_by_key(self, key):
+            """
+            This method is only an example! Replace it with a real user database.
+
+            :param str key: the public key the user belongs to
+            """
+            if not hasattr(self, '_example_user_db'):
+                self._example_user_db = {}
+
+            if key in self._example_user_db:
+                return self._example_user_db[key]
+            return None
+
+.. |PyPi version| image:: https://img.shields.io/pypi/v/flask-bitjws.svg
+   :target: https://pypi.python.org/pypi/flask-bitjws/
 .. |Build Status| image:: https://travis-ci.org/deginner/flask-bitjws.svg?branch=master
    :target: https://travis-ci.org/deginner/flask-bitjws
 .. |Coverage| image:: https://coveralls.io/repos/deginner/flask-bitjws/badge.svg?branch=master&service=github
