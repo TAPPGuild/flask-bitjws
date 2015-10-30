@@ -39,8 +39,8 @@ FlaskBitjws(app)
 ```
 
 ##### Customizing LoginManager
-Flask-bitjws uses flask-login to manage user login and authentication. By default,
-the FlaskBitjws initialization will create a new LoginManager for you. If you need to customize, you can alternately provide your own. Just be aware that it's request loader needs to be left as is.
+Flask-bitjws uses [flask-login](https://github.com/maxcountryman/flask-login) to manage user login and authentication. By default,
+the FlaskBitjws initialization will create a new LoginManager for you. If you need to customize, you can alternately provide your own. Just be aware that it's request_loader needs to be left as is.
 
 ``` Python
 from flask import Flask
@@ -112,7 +112,7 @@ return current_app.create_bitjws_response(response_object)
 
 ## Your Database
 
-Flask-bitjws comes with an example, in-memory data store for users and nonces. Using this example "database" is extremely insecure and unstable. It is recommended to providing bindings to your own persistent database for production use. This can be done by overwriting two FlaskBitjws methods: get_last_nonce, and get_user_by_key. Here are the defaults, for reference:
+Flask-bitjws comes with an example, in-memory data store for users and nonces. Using this example "database" is extremely insecure and unstable. It is recommended to provide bindings to your own persistent database for production use. This can be done by overwriting two FlaskBitjws methods: get_last_nonce, and get_user_by_key. Here are the defaults, for reference:
 
 
 ```

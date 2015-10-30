@@ -20,35 +20,48 @@ class FlaskUser(login.UserMixin):
         self.username = username
 
 
-def load_user_from_request(req):
+def load_jws_from_request(req):
     """
-    Just like the Flask.login load_user_from_request
-
     This function performs almost entirely bitjws authentication tasks.
-    If you need to customize the user loading from your database,
-    the FlaskBitjws.get_user_by_key method is the one to modify.
+    If valid bitjws message and signature headers are found,
+    then the request will be assigned 'jws_header' and 'jws_payload' attributes.
 
-    :param req: The flask request to load a user based on.
+    :param req: The flask request to load the jwt claim set from.
     """
+    jws_header = None
+    jws_payload = None
     if "application/jose" in req.headers['content-type']:
         path = urlparse.urlsplit(req.url).path
         for rule in current_app.url_map.iter_rules():
             if path == rule.rule and req.method in rule.methods:
                 dedata = req.get_data().decode('utf8')
-                req.jws_header, req.jws_payload = \
+                jws_header, jws_payload = \
                     bitjws.validate_deserialize(dedata, requrl=rule.rule)
                 break
+
+    if (jws_header is not None and 'iat' in jws_payload and
+            jws_payload['iat'] >
+            current_app.bitjws.get_last_nonce(jws_header['kid'],
+                                              jws_payload['iat'])):
+        req.jws_header = jws_header
+        req.jws_payload = jws_payload
+
+
+def load_user_from_request(req):
+    """
+    Just like the Flask.login load_user_from_request
+
+    If you need to customize the user loading from your database,
+    the FlaskBitjws.get_user_by_key method is the one to modify.
+
+    :param req: The flask request to load a user based on.
+    """
+    load_jws_from_request(req)
     if not hasattr(req, 'jws_header') or req.jws_header is None:
         return None
 
-    if (not 'iat' in req.jws_payload or
-            req.jws_payload['iat'] <=
-            current_app.bitjws.get_last_nonce(req.jws_header['kid'],
-                                              req.jws_payload['iat'])):
-        return None
     rawu = current_app.bitjws.get_user_by_key(req.jws_header['kid'])
-    user = FlaskUser(**rawu)
-    return user
+    return FlaskUser(**rawu)
 
 
 class FlaskBitjws(object):
