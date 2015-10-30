@@ -44,13 +44,13 @@ def echodetails():
 @app.route('/user', methods=['POST'])
 def prot():
     user = json.loads(request.get_data())
-    oldu = current_app.bitjws.get_user_by_key(user['kid'])
+    oldu = current_app.bitjws.get_user_by_key(current_app, user['kid'])
     if oldu is not None:
         user = oldu
     else:
         user['salt'] = user['kid']  # just reusing this salt name... not a salt
         del user['kid']
-        current_app.bitjws._example_user_db[user['salt']] = user
+        current_app._example_user_db[user['salt']] = user
     return json.dumps(user)
 
 if __name__ == "__main__":

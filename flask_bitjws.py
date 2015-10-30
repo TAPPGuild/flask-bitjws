@@ -9,10 +9,10 @@ from flask import Response, current_app
 from flask.ext import login
 
 
-##############################################################
-# DB STUBS Section
-# Overwrite the functions in this section with your own.
-##############################################################
+"""
+DB STUBS Section
+Overwrite the functions in this section with your own.
+"""
 def get_last_nonce(app, key, nonce):
     """
     This method is only an example! Replace it with a real nonce database.
@@ -23,7 +23,7 @@ def get_last_nonce(app, key, nonce):
     if not hasattr(app, '_example_nonce_db'):
         # store nonces as a pair {key: lastnonce}
         app._example_nonce_db = {}
-    if not key in self._example_nonce_db:
+    if not key in app._example_nonce_db:
         app._example_nonce_db[key] = nonce
         return 0
     else:
@@ -44,9 +44,9 @@ def get_user_by_key(app, key):
     if key in app._example_user_db:
         return app._example_user_db[key]
     return None
-##############################################################
-# DB STUBS Section End
-##############################################################
+"""
+DB STUBS Section End
+"""
 
 
 def load_jws_from_request(req):
@@ -79,14 +79,15 @@ def load_user_from_request(req):
     :param req: The flask request to load a user based on.
     """
     load_jws_from_request(req)
-    if not hasattr(req, 'jws_header') or req.jws_header is None:
+    if not hasattr(req, 'jws_header') or req.jws_header is None or not \
+            'iat' in req.jws_payload:
         return None
 
     ln = current_app.bitjws.get_last_nonce(current_app,
                                            req.jws_header['kid'],
                                            req.jws_payload['iat'])
 
-    if (ln is None or req.jws_header is None or 'iat' not in req.jws_payload or
+    if (ln is None or 'iat' not in req.jws_payload or
             req.jws_payload['iat'] * 1000 <= ln):
         return None
 

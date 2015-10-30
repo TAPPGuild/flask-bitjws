@@ -112,43 +112,43 @@ return current_app.create_bitjws_response(response_object)
 
 ## Your Database
 
-Flask-bitjws comes with an example, in-memory data store for users and nonces. Using this example "database" is extremely insecure and unstable. It is recommended to provide bindings to your own persistent database for production use. This can be done by overwriting two FlaskBitjws methods: get_last_nonce, and get_user_by_key. Here are the defaults, for reference:
+Flask-bitjws comes with an example, in-memory data store for users and nonces. Using this example "database" is extremely insecure and unstable. It is recommended to provide bindings to your own persistent database for production use. This can be done by passing `FlaskBitjws.__init__` two functions: get_last_nonce, and get_user_by_key. These should do pretty much what their names say.
 
+##### SQLAlchemy Example
 
 ```
+def get_last_nonce(app, key, nonce):
     """
-    DB STUBS
+    This method is only an example! Replace it with a real nonce database.
 
-    Overwrite the remaining methods in this class for your own.
+    :param str key: the public key the nonce belongs to
+    :param int nonce: the latest nonce
     """
-    def get_last_nonce(self, key, nonce):
-        """
-        This method is only an example! Replace it with a real nonce database.
-
-        :param str key: the public key the nonce belongs to
-        :param int nonce: the latest nonce
-        """
-        if not hasattr(self, '_example_nonce_db'):
-            # store nonces as a pair {key: lastnonce}
-            self._example_nonce_db = {}
-        if not key in self._example_nonce_db:
-            self._example_nonce_db[key] = nonce
-            return 0
-        else:
-            oldnonce = copy.copy(self._example_nonce_db[key])
-            self._example_nonce_db[key] = nonce
-            return oldnonce
-
-    def get_user_by_key(self, key):
-        """
-        This method is only an example! Replace it with a real user database.
-
-        :param str key: the public key the user belongs to
-        """
-        if not hasattr(self, '_example_user_db'):
-            self._example_user_db = {}
-
-        if key in self._example_user_db:
-            return self._example_user_db[key]
+    uk = ses.query(UserKey).filter(UserKey.key==key)\
+            .filter(UserKey.last_nonce<nonce * 1000).first()
+    if not uk:
         return None
+    lastnonce = copy.copy(uk.last_nonce)
+    # TODO Update DB record in same query as above, if possible
+    uk.last_nonce = nonce * 1000
+    try:
+        ses.commit()
+    except Exception as e:
+        print e
+        ses.rollback()
+        ses.flush()
+    return lastnonce
+
+
+def get_user_by_key(app, key):
+    """
+    This method is only an example! Replace it with a real user database.
+
+    :param str key: the public key the user belongs to
+    """
+    user = ses.query(SLM_User).join(UserKey).filter(UserKey.key==key).first()
+    return user
+
+FlaskBitjws(app, get_last_nonce=get_last_nonce,
+            get_user_by_key=get_user_by_key)
 ```
