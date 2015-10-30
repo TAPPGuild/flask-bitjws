@@ -9,15 +9,44 @@ from flask import Response, current_app
 from flask.ext import login
 
 
-class FlaskUser(login.UserMixin):
+##############################################################
+# DB STUBS Section
+# Overwrite the functions in this section with your own.
+##############################################################
+def get_last_nonce(app, key, nonce):
     """
-    A flask_login UserMixin.
-    """
+    This method is only an example! Replace it with a real nonce database.
 
-    def __init__(self, username, salt):
-        super(FlaskUser, self).__init__()
-        self.salt = salt
-        self.username = username
+    :param str key: the public key the nonce belongs to
+    :param int nonce: the latest nonce
+    """
+    if not hasattr(app, '_example_nonce_db'):
+        # store nonces as a pair {key: lastnonce}
+        app._example_nonce_db = {}
+    if not key in self._example_nonce_db:
+        app._example_nonce_db[key] = nonce
+        return 0
+    else:
+        oldnonce = copy.copy(app._example_nonce_db[key])
+        app._example_nonce_db[key] = nonce
+        return oldnonce
+
+
+def get_user_by_key(app, key):
+    """
+    This method is only an example! Replace it with a real user database.
+
+    :param str key: the public key the user belongs to
+    """
+    if not hasattr(app, '_example_user_db'):
+        app._example_user_db = {}
+
+    if key in app._example_user_db:
+        return app._example_user_db[key]
+    return None
+##############################################################
+# DB STUBS Section End
+##############################################################
 
 
 def load_jws_from_request(req):
@@ -35,15 +64,9 @@ def load_jws_from_request(req):
         for rule in current_app.url_map.iter_rules():
             if path == rule.rule and req.method in rule.methods:
                 dedata = req.get_data().decode('utf8')
-                jws_header, jws_payload = \
+                req.jws_header, req.jws_payload = \
                     bitjws.validate_deserialize(dedata, requrl=rule.rule)
                 break
-    if (jws_header is not None and 'iat' in jws_payload and
-            jws_payload['iat'] >
-            current_app.bitjws.get_last_nonce(jws_header['kid'],
-                                              jws_payload['iat'])):
-        req.jws_header = jws_header
-        req.jws_payload = jws_payload
 
 
 def load_user_from_request(req):
@@ -59,10 +82,29 @@ def load_user_from_request(req):
     if not hasattr(req, 'jws_header') or req.jws_header is None:
         return None
 
-    rawu = current_app.bitjws.get_user_by_key(req.jws_header['kid'])
+    ln = current_app.bitjws.get_last_nonce(current_app,
+                                           req.jws_header['kid'],
+                                           req.jws_payload['iat'])
+
+    if (ln is None or req.jws_header is None or 'iat' not in req.jws_payload or
+            req.jws_payload['iat'] * 1000 <= ln):
+        return None
+
+    rawu = current_app.bitjws.get_user_by_key(current_app,
+                                              req.jws_header['kid'])
     if rawu is None:
         return None
-    return FlaskUser(**rawu)
+    return FlaskUser(rawu)
+
+class FlaskUser(login.UserMixin):
+
+    def __init__(self, dbuser):
+        super(FlaskUser, self).__init__()
+        self.dbuser = dbuser
+
+    @property
+    def id(self):
+        return self.dbuser.id
 
 
 class FlaskBitjws(object):
@@ -77,7 +119,9 @@ class FlaskBitjws(object):
     """
 
     def __init__(self, app, privkey=None,
-                 loginmanager=None):
+                 loginmanager=None,
+                 get_last_nonce=get_last_nonce,
+                 get_user_by_key=get_user_by_key):
         """
         Initialize a flask-bitjws Application with optional LoginManager.
         If you do not provide your own LoginManager one will be created.
@@ -87,6 +131,8 @@ class FlaskBitjws(object):
         :param str app: The flask application
         :param str privkey: the bitjws private key to use for signing responses
         :param flask.ext.login.LoginManager loginmanager: An optional LoginManager
+        :param function get_last_nonce: A function to overwrite this class's stub. 
+        :param function get_user_by_key: A function to overwrite this class's stub.
         """
         if privkey is not None and isinstance(privkey, str):
             self._privkey = bitjws.PrivateKey(bitjws.wif_to_privkey(privkey))
@@ -102,6 +148,10 @@ class FlaskBitjws(object):
             loginmanager.anonymous_user = login.AnonymousUserMixin
             loginmanager.init_app(app)
         loginmanager.request_loader(load_user_from_request)
+
+        self.get_last_nonce = get_last_nonce
+        self.get_user_by_key = get_user_by_key
+    
         app.bitjws = self
 
     def create_response(self, payload):
@@ -116,39 +166,4 @@ class FlaskBitjws(object):
         signedmess = bitjws.sign_serialize(self._privkey, requrl='/response',
                                            iat=time.time(), data=payload)
         return Response(signedmess, mimetype='application/jose')
-
-    ##############################################################
-    # DB STUBS Section
-    # Overwrite the remaining methods in this class for your own.
-    ##############################################################
-    def get_last_nonce(self, key, nonce):
-        """
-        This method is only an example! Replace it with a real nonce database.
-
-        :param str key: the public key the nonce belongs to
-        :param int nonce: the latest nonce
-        """
-        if not hasattr(self, '_example_nonce_db'):
-            # store nonces as a pair {key: lastnonce}
-            self._example_nonce_db = {}
-        if not key in self._example_nonce_db:
-            self._example_nonce_db[key] = nonce
-            return 0
-        else:
-            oldnonce = copy.copy(self._example_nonce_db[key])
-            self._example_nonce_db[key] = nonce
-            return oldnonce
-
-    def get_user_by_key(self, key):
-        """
-        This method is only an example! Replace it with a real user database.
-
-        :param str key: the public key the user belongs to
-        """
-        if not hasattr(self, '_example_user_db'):
-            self._example_user_db = {}
-
-        if key in self._example_user_db:
-            return self._example_user_db[key]
-        return None
 
