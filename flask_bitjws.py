@@ -38,7 +38,6 @@ def load_jws_from_request(req):
                 jws_header, jws_payload = \
                     bitjws.validate_deserialize(dedata, requrl=rule.rule)
                 break
-
     if (jws_header is not None and 'iat' in jws_payload and
             jws_payload['iat'] >
             current_app.bitjws.get_last_nonce(jws_header['kid'],
@@ -61,6 +60,8 @@ def load_user_from_request(req):
         return None
 
     rawu = current_app.bitjws.get_user_by_key(req.jws_header['kid'])
+    if rawu is None:
+        return None
     return FlaskUser(**rawu)
 
 
