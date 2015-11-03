@@ -64,8 +64,9 @@ def load_jws_from_request(req):
         for rule in current_app.url_map.iter_rules():
             if path == rule.rule and req.method in rule.methods:
                 dedata = req.get_data().decode('utf8')
+                bp = current_app.bitjws.basepath
                 req.jws_header, req.jws_payload = \
-                    bitjws.validate_deserialize(dedata, requrl=rule.rule)
+                    bitjws.validate_deserialize(dedata, requrl=bp + rule.rule)
                 break
 
 
@@ -122,7 +123,8 @@ class FlaskBitjws(object):
     def __init__(self, app, privkey=None,
                  loginmanager=None,
                  get_last_nonce=get_last_nonce,
-                 get_user_by_key=get_user_by_key):
+                 get_user_by_key=get_user_by_key,
+                 basepath=""):
         """
         Initialize a flask-bitjws Application with optional LoginManager.
         If you do not provide your own LoginManager one will be created.
@@ -134,6 +136,8 @@ class FlaskBitjws(object):
         :param flask.ext.login.LoginManager loginmanager: An optional LoginManager
         :param function get_last_nonce: A function to overwrite this class's stub. 
         :param function get_user_by_key: A function to overwrite this class's stub.
+        :param str basepath: The public basepath this app is deployed on.
+             (only preceding slash required i.e. '/path')
         """
         if privkey is not None and isinstance(privkey, str):
             self._privkey = bitjws.PrivateKey(bitjws.wif_to_privkey(privkey))
@@ -153,6 +157,8 @@ class FlaskBitjws(object):
         self.get_last_nonce = get_last_nonce
         self.get_user_by_key = get_user_by_key
     
+        self.basepath=basepath
+
         app.bitjws = self
 
     def create_response(self, payload):

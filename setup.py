@@ -8,7 +8,7 @@ classifiers = [
 
 setup(
     name='flask-bitjws',
-    version='0.1.1.3',
+    version='0.1.1.4',
     py_modules=['flask_bitjws'],
     url='https://github.com/deginner/flask-bitjws',
     license='MIT',

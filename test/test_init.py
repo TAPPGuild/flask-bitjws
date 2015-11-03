@@ -20,3 +20,13 @@ def test_init_PrivateKey():
     fbj = FlaskBitjws(app, privkey=privkey)
     assert wif == bitjws.privkey_to_wif(app.bitjws._privkey.private_key)
 
+
+def test_init_basepath():
+    privkey = bitjws.PrivateKey(bitjws.wif_to_privkey(wif))
+    fbj = FlaskBitjws(server.app, privkey=privkey, basepath="/v3")
+    app = server.app.test_client()
+    import time
+    user = app.post('/echo', data={'username': str(time.time)})
+    assert user.status_code == 401
+
+    # TODO how to test a successful basepath customization?
