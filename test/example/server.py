@@ -3,11 +3,16 @@ import bitjws
 import json
 from flask import Flask, request, current_app
 from flask.ext.login import login_required
+import logging
+from logging.handlers import RotatingFileHandler
 
 import cfg
 
 COINS = [{'metal': 'AU', 'mint': 'perth'}, {'metal': 'AG', 'mint': 'perth'}]
 app = Flask(__name__)
+handler = RotatingFileHandler('tests.log', maxBytes=10000, backupCount=1)
+handler.setLevel(logging.DEBUG)
+app.logger.addHandler(handler)
 
 
 @app.route('/coin', methods=['GET'])
@@ -50,7 +55,7 @@ def prot():
     else:
         user['salt'] = user['kid']  # just reusing this salt name... not a salt
         del user['kid']
-        current_app._example_user_db[user['salt']] = user
+        current_app.example_user_db[user['salt']] = user
     return json.dumps(user)
 
 if __name__ == "__main__":

@@ -20,15 +20,15 @@ def get_last_nonce(app, key, nonce):
     :param str key: the public key the nonce belongs to
     :param int nonce: the latest nonce
     """
-    if not hasattr(app, '_example_nonce_db'):
+    if not hasattr(app, 'example_nonce_db'):
         # store nonces as a pair {key: lastnonce}
-        app._example_nonce_db = {}
-    if not key in app._example_nonce_db:
-        app._example_nonce_db[key] = nonce
+        app.example_nonce_db = {}
+    if not key in app.example_nonce_db:
+        app.example_nonce_db[key] = nonce
         return 0
     else:
-        oldnonce = copy.copy(app._example_nonce_db[key])
-        app._example_nonce_db[key] = nonce
+        oldnonce = copy.copy(app.example_nonce_db[key])
+        app.example_nonce_db[key] = nonce
         return oldnonce
 
 
@@ -38,11 +38,11 @@ def get_user_by_key(app, key):
 
     :param str key: the public key the user belongs to
     """
-    if not hasattr(app, '_example_user_db'):
-        app._example_user_db = {}
+    if not hasattr(app, 'example_user_db'):
+        app.example_user_db = {}
 
-    if key in app._example_user_db:
-        return app._example_user_db[key]
+    if key in app.example_user_db:
+        return app.example_user_db[key]
     return None
 """
 DB STUBS Section End
@@ -57,9 +57,11 @@ def load_jws_from_request(req):
 
     :param req: The flask request to load the jwt claim set from.
     """
-    jws_header = None
-    jws_payload = None
-    if "application/jose" in req.headers['content-type']:
+    current_app.logger.info("loading request with headers: %s" % req.headers)
+    if (("content-type" in req.headers and
+         "application/jose" in req.headers['content-type']) or
+        ("Content-Type" in req.headers and
+         "application/jose" in req.headers['Content-Type'])):
         path = urlparse.urlsplit(req.url).path
         for rule in current_app.url_map.iter_rules():
             if path == rule.rule and req.method in rule.methods:
@@ -82,6 +84,7 @@ def load_user_from_request(req):
     load_jws_from_request(req)
     if not hasattr(req, 'jws_header') or req.jws_header is None or not \
             'iat' in req.jws_payload:
+        current_app.logger.info("invalid jws request.")
         return None
 
     ln = current_app.bitjws.get_last_nonce(current_app,
@@ -90,15 +93,20 @@ def load_user_from_request(req):
 
     if (ln is None or 'iat' not in req.jws_payload or
             req.jws_payload['iat'] * 1000 <= ln):
+        current_app.logger.info("invalid nonce. lastnonce: %s" % ln)
         return None
 
     rawu = current_app.bitjws.get_user_by_key(current_app,
                                               req.jws_header['kid'])
     if rawu is None:
         return None
+    current_app.logger.info("logging in user: %s" % rawu)
     return FlaskUser(rawu)
 
 class FlaskUser(login.UserMixin):
+    """
+    A subclass of flask-login's UserMixin with a separate db user.
+    """
 
     def __init__(self, dbuser):
         super(FlaskUser, self).__init__()
@@ -134,7 +142,7 @@ class FlaskBitjws(object):
         :param str app: The flask application
         :param str privkey: the bitjws private key to use for signing responses
         :param flask.ext.login.LoginManager loginmanager: An optional LoginManager
-        :param function get_last_nonce: A function to overwrite this class's stub. 
+        :param function get_last_nonce: A function to overwrite this class's stub.
         :param function get_user_by_key: A function to overwrite this class's stub.
         :param str basepath: The public basepath this app is deployed on.
              (only preceding slash required i.e. '/path')
@@ -146,7 +154,6 @@ class FlaskBitjws(object):
         else:
             self._privkey = bitjws.PrivateKey()
         self.pubkey = bitjws.pubkey_to_addr(self._privkey.pubkey.serialize())
-        print "Initializing FlaskBitjws from with address: {}".format(self.pubkey)
 
         if loginmanager is None:
             loginmanager = login.LoginManager()
@@ -156,8 +163,8 @@ class FlaskBitjws(object):
 
         self.get_last_nonce = get_last_nonce
         self.get_user_by_key = get_user_by_key
-    
-        self.basepath=basepath
+
+        self.basepath = basepath
 
         app.bitjws = self
 
